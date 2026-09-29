@@ -1,20 +1,13 @@
-﻿// Copyright iraj mohtasham aurelion.net 2023
-
+// Copyright iraj mohtasham aurelion.net 2023
 #include "CaptureSubsystem.h"
 #include "Interfaces/IPluginManager.h"
-#include "Core.h"
-extern  "C" {
-#include "libavformat/avformat.h"
-}
-DEFINE_LOG_CATEGORY(LogCaptureSubsystem);
+#include "HAL/PlatformProcess.h"
+#include "Misc/Paths.h"
 
-#define LOCTEXT_NAMESPACE "FCaptureSubsystemModule"
+DEFINE_LOG_CATEGORY(LogCaptureSubsystem);
 
 void FCaptureSubsystemModule::StartupModule()
 {
-	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
-
-	
 	AVUtilLibrary = LoadLibrary(TEXT("avutil"), TEXT("57"));
 	SWResampleLibrary = LoadLibrary(TEXT("swresample"), TEXT("4"));
 	AVCodecLibrary = LoadLibrary(TEXT("avcodec"), TEXT("59"));
@@ -28,12 +21,7 @@ void FCaptureSubsystemModule::StartupModule()
 
 void FCaptureSubsystemModule::ShutdownModule()
 {
-	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
-	// we call this function before unloading the module.
-	if (!Initialized)
-	{
-		return;
-	}
+	if (!Initialized) return;
 	if (AVDeviceLibrary) FPlatformProcess::FreeDllHandle(AVDeviceLibrary);
 	if (AVFilterLibrary) FPlatformProcess::FreeDllHandle(AVFilterLibrary);
 	if (PostProcLibrary) FPlatformProcess::FreeDllHandle(PostProcLibrary);
@@ -42,39 +30,31 @@ void FCaptureSubsystemModule::ShutdownModule()
 	if (AVCodecLibrary) FPlatformProcess::FreeDllHandle(AVCodecLibrary);
 	if (SWResampleLibrary) FPlatformProcess::FreeDllHandle(SWResampleLibrary);
 	if (AVUtilLibrary) FPlatformProcess::FreeDllHandle(AVUtilLibrary);
-
 	Initialized = false;
 }
 
-void* FCaptureSubsystemModule::LoadLibrary(const FString& name, const FString& version)
+void* FCaptureSubsystemModule::LoadLibrary(const FString& Name, const FString& Version)
 {
-	FString BaseDir = IPluginManager::Get().FindPlugin("CaptureSubsystem")->GetBaseDir();
-
-	FString LibDir;
-	FString extension;
-	FString prefix;
-	FString separator;
+	FString Directory;
+	FString Prefix;
+	FString Separator;
+	FString Extension;
 #if PLATFORM_MAC
-	LibDir = FPaths::Combine(*BaseDir, TEXT("ThirdParty/ffmpeg/lib/osx"));
-	extension = TEXT(".dylib");
-	prefix = "lib";
-	separator = ".";
+	Directory = IPluginManager::Get().FindPlugin(TEXT("CaptureSubsystem"))->GetBaseDir() / TEXT("Source/ThirdParty/ffmpeg/lib/osx");
+	Prefix = TEXT("lib");
+	Separator = TEXT(".");
+	Extension = TEXT(".dylib");
 #elif PLATFORM_WINDOWS
-	extension = TEXT(".dll");
-	prefix = "";
-	separator = "-";
-
-	LibDir = FPaths::Combine(*BaseDir, TEXT("ThirdParty/ffmpeg/bin/vs/x64"));
-
+	// FFMPEG.build.cs stages the DLLs alongside the project binaries.
+	Directory = FPaths::ProjectDir() / TEXT("Binaries/Win64");
+	Separator = TEXT("-");
+	Extension = TEXT(".dll");
 #endif
-	if (!LibDir.IsEmpty()) {
-		FString LibraryPath = FPaths::Combine(*LibDir, prefix + name + separator + version + extension);
-		UE_LOG(LogCaptureSubsystem,Log,TEXT("Loading %s"),*LibraryPath)
-		return FPlatformProcess::GetDllHandle(*LibraryPath);
-	}
-	return nullptr;
+	if (Directory.IsEmpty()) return nullptr;
+	const FString Path = Directory / (Prefix + Name + Separator + Version + Extension);
+	void* Library = FPlatformProcess::GetDllHandle(*Path);
+	if (!Library) UE_LOG(LogCaptureSubsystem, Error, TEXT("Cannot load FFmpeg library: %s"), *Path);
+	return Library;
 }
 
-#undef LOCTEXT_NAMESPACE
-	
 IMPLEMENT_MODULE(FCaptureSubsystemModule, CaptureSubsystem)

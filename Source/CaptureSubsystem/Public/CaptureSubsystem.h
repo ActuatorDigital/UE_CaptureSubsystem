@@ -16,14 +16,14 @@ public:
 
 private:
 	void* LoadLibrary(const  FString& name, const FString& version);
-	void* AVUtilLibrary;
-	void* SWResampleLibrary;
-	void* AVCodecLibrary;
-	void* SWScaleLibrary;
-	void* AVFormatLibrary;
-	void* PostProcLibrary;
-	void* AVFilterLibrary;
-	void* AVDeviceLibrary;
+	void* AVUtilLibrary = nullptr;
+	void* SWResampleLibrary = nullptr;
+	void* AVCodecLibrary = nullptr;
+	void* SWScaleLibrary = nullptr;
+	void* AVFormatLibrary = nullptr;
+	void* PostProcLibrary = nullptr;
+	void* AVFilterLibrary = nullptr;
+	void* AVDeviceLibrary = nullptr;
 
-	bool Initialized;
+	bool Initialized = false;
 };
